@@ -133,10 +133,16 @@ class LinuxDoBrowser:
         for ck in dp_cookies:
             self.session.cookies.set(ck["name"], ck["value"], domain="linux.do")
 
+# 【修复点】先访问一次目标域名，建立域名上下文，否则 Chromium 会拒绝写入跨域 Cookie
+        logger.info("初始化页面环境...")
+        self.page.get("https://linux.do/404") # 访问一个轻量页面或首页均可
+        
         # 同步到 DrissionPage
         self.page.set.cookies(dp_cookies)
-        logger.info("Cookie 设置完成，导航至 linux.do...")
-        self.page.get(HOME_URL)
+        logger.info("Cookie 设置完成，导航至首页...")
+        
+        # 带着刚刚写入的 Cookie 真正访问首页
+        self.page.get(HOME_URL) 
         time.sleep(5)
 
         # 验证登录状态
@@ -144,7 +150,7 @@ class LinuxDoBrowser:
             user_ele = self.page.ele("@id=current-user")
         except Exception as e:
             logger.warning(f"Cookie 登录验证异常: {str(e)}")
-            return True
+            return False
         if not user_ele:
             if "avatar" in self.page.html:
                 logger.info("Cookie 登录验证成功 (通过 avatar)")
@@ -226,6 +232,9 @@ class LinuxDoBrowser:
                 }
             )
 
+# 【修复点】同样需要先访问目标域名
+        self.page.get("https://linux.do/404")
+        
         self.page.set.cookies(dp_cookies)
 
         logger.info("Cookie 设置完成，导航至 linux.do...")
@@ -314,6 +323,7 @@ class LinuxDoBrowser:
                 login_res = self.login()
             if not login_res:  # 登录
                 logger.warning("登录验证失败")
+                return
 
             if BROWSE_ENABLED:
                 click_topic_res = self.click_topic()  # 点击主题
